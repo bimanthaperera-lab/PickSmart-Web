@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="898" height="2000" viewBox="0 0 898 2000">
+<rect x="64" y="417" width="770" height="107" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="78" y="397" width="78" height="40" rx="8" fill="#FBBB23"/>
+<text x="88" y="426" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Fare</text>
+<rect x="64" y="545" width="374" height="161" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="78" y="525" width="198" height="40" rx="8" fill="#FBBB23"/>
+<text x="88" y="554" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Platform fee</text>
+<rect x="460" y="545" width="374" height="161" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="474" y="525" width="183" height="40" rx="8" fill="#FBBB23"/>
+<text x="484" y="554" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Other costs</text>
+<rect x="64" y="863" width="241" height="161" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="78" y="843" width="153" height="40" rx="8" fill="#FBBB23"/>
+<text x="88" y="872" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Pickup km</text>
+<rect x="326" y="863" width="243" height="161" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="340" y="843" width="123" height="40" rx="8" fill="#FBBB23"/>
+<text x="350" y="872" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Trip km</text>
+<rect x="591" y="863" width="243" height="161" rx="24" fill="#FBBB23" fill-opacity="0.14" stroke="#FBBB23" stroke-width="4"/>
+<rect x="605" y="843" width="153" height="40" rx="8" fill="#FBBB23"/>
+<text x="615" y="872" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#0B0F14">Return km</text>
+</svg>

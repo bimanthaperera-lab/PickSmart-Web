@@ -1,0 +1,1854 @@
+/* One phone, one scroll. The phone lives on a fixed canvas behind the page; all text is HTML.
+   html[data-mode] is "full" (the whole sequence), "lite" (phones: hero only) or "static". */
+
+:root {
+  /* Picksmart: the app's near-black, its text, and the brand yellow (#FBBB23).
+     --cobalt is the accent everywhere (links, focus, highlights): the brand yellow. */
+  --canvas: #0b0f14;
+  --canvas-lit: #151c26;
+  --surface: #131a22;
+  --line: rgb(255 255 255 / 0.09);
+  --ink: #f2f4f7;
+  --slate: #9aa4b2;
+  --cobalt: #fbbb23;
+  --amber: #fbbb23;
+  --on-amber: #0b0f14;
+  --profit: #4ade80;
+  --loss: #f87171;
+
+  --font-sans: "Google Sans", "Segoe UI", system-ui, sans-serif;
+  --font-code: "Iosevka", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Scale: 14 / 18 / 24 / 36 / 60 */
+  --step-0: 0.875rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: 2.25rem;
+  --step-4: clamp(2.25rem, 4.2vw, 3.75rem);
+
+  --gutter: clamp(20px, 4vw, 56px);
+  --col-gap: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 100%;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  font-size: var(--step-1);
+  line-height: 1.5;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+a {
+  color: var(--cobalt);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a {
+  transition:
+    text-decoration-thickness 160ms ease-out,
+    text-underline-offset 160ms ease-out,
+    color 160ms ease-out;
+}
+
+a:hover {
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.28em;
+}
+
+/* Headings whose letters react to the pointer: heavy at rest, they thin out under it,
+   the way the lens shows what's underneath. Built by src/type.js. */
+.kinetic__word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.kinetic__ch {
+  display: inline-block;
+  font-weight: var(--w, inherit);
+  transition: font-weight 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 3px;
+}
+
+/* Kept for screen readers when the phone shows the same thing. */
+.sr-only,
+[data-mode="full"] .work-item__image,
+[data-mode="full"] .crop,
+[data-mode="full"] .hero__still,
+[data-mode="lite"] .hero__still,
+[data-mode="full"] .story__figure {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 20;
+  padding: 8px 12px;
+  background: var(--canvas);
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+/* ---------- The fixed layers: backdrop, canvas, lens ---------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 55% 60% at 64% 42%, var(--canvas-lit), var(--canvas) 70%);
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.scene__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.scene__labels {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+
+.scene__label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 18px;
+  font-weight: 560;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+[data-mode="lite"] .scene__label {
+  font-size: 15px;
+}
+
+[data-mode="static"] .scene,
+[data-mode="static"] .backdrop {
+  display: none;
+}
+
+/* The lens ring. What's inside it is drawn by the canvas. */
+.lens {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: calc(var(--lens-r, 120px) * 2);
+  height: calc(var(--lens-r, 120px) * 2);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1.5px var(--amber),
+    0 0 0 1px rgb(11 15 20 / 0.6),
+    0 0 40px rgb(251 187 35 / 0.18);
+  touch-action: none;
+  cursor: grab;
+}
+
+.lens::before,
+.lens::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  background: var(--amber);
+}
+
+.lens::before {
+  width: 13px;
+  height: 1.5px;
+}
+
+.lens::after {
+  width: 1.5px;
+  height: 13px;
+}
+
+.lens[data-off],
+html:not([data-mode="full"]) .lens {
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lens {
+    pointer-events: none;
+  }
+  [data-lens-on] .hero__sticky {
+    cursor: none;
+  }
+  [data-lens-on] .hero__copy {
+    cursor: auto;
+  }
+}
+
+main,
+.site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 24px var(--gutter);
+}
+
+.site-header a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.site-header__name {
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.site-header__nav {
+  display: flex;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-header__nav a:hover {
+  text-decoration: underline;
+}
+
+.site-header {
+  align-items: center;
+  gap: 28px;
+}
+
+.site-header nav {
+  margin-left: auto;
+}
+
+/* ---------- Pill buttons (story and header) ---------- */
+
+.button.button--amber,
+.button.button--ghost,
+.button.button--ink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header .button--ink,
+.site-header .button--amber {
+  min-height: 40px;
+  padding: 6px 18px;
+}
+
+.button.button--amber,
+.site-header a.button--amber {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--on-amber);
+}
+
+.button.button--ghost {
+  background: transparent;
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.button.button--ink,
+.site-header a.button--ink {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.button.button--amber:hover {
+  background: var(--amber);
+  border-color: var(--amber);
+  filter: brightness(1.05) saturate(1.1);
+}
+
+.button.button--ghost:hover {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.button.button--ink:hover,
+.site-header a.button--ink:hover {
+  background: var(--cobalt);
+  border-color: var(--cobalt);
+}
+
+/* ---------- Story ---------- */
+
+.backdrop__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 62% 48%, #000 45%, transparent 90%);
+  mask-image: radial-gradient(ellipse 85% 75% at 62% 48%, #000 45%, transparent 90%);
+}
+
+/* The illustration for the full sequence: fixed, behind the 3D canvas. Edges fade into the page. */
+.stage-art {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* Its perspective is in the image's own transform (story.js), so it turns about its own centre. */
+}
+
+.stage-art img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  visibility: hidden;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent),
+    linear-gradient(transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent),
+    linear-gradient(transparent, #000 6%, #000 94%, transparent);
+  mask-composite: intersect;
+}
+
+html:not([data-mode="full"]) .stage-art {
+  display: none;
+}
+
+.story__sticky {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 112px var(--gutter) 72px;
+}
+
+html:not([data-mode="full"]) .story__sticky {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Full: about three screen heights; the text and illustration stay while the beats change. */
+[data-mode="full"] .story {
+  height: 300vh;
+}
+
+[data-mode="full"] .story__sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+}
+
+.story__beats {
+  grid-column: 1 / span 6;
+  grid-row: 1;
+}
+
+.story__figure {
+  grid-column: 7 / span 6;
+  grid-row: 1;
+}
+
+.story__figure img {
+  width: 100%;
+  height: auto;
+}
+
+[data-mode="full"] .story__beats {
+  grid-column: 1 / span 5;
+  display: grid;
+  align-items: center;
+}
+
+/* All beats share one spot; the timeline shows one at a time. */
+[data-mode="full"] .beat--intro,
+[data-mode="full"] .story__timeline {
+  grid-area: 1 / 1;
+}
+
+[data-mode="full"] .story__timeline {
+  display: grid;
+  align-items: center;
+}
+
+[data-mode="full"] .story__timeline > .beat {
+  grid-area: 1 / 1;
+  margin: 0;
+}
+
+[data-mode="full"] .story__timeline > .beat:not(:first-child),
+[data-mode="full"] .story__timeline > .beat:first-child {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.story__kicker {
+  font-size: var(--step-0);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.story__name {
+  margin-top: 6px;
+  font-size: clamp(2.6rem, 5.4vw, 5.25rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.story__last {
+  color: var(--cobalt);
+}
+
+.story__role {
+  margin-top: 18px;
+  max-width: 40ch;
+  font-size: var(--step-1);
+  font-weight: 480;
+  color: var(--slate);
+}
+
+.story__place {
+  white-space: nowrap;
+}
+
+.story__place svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 4px;
+  color: var(--cobalt);
+}
+
+.story__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.story__chips,
+.story__social,
+.story__timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.story__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.story__chips li {
+  padding: 4px 14px;
+  border: 1.5px solid rgb(20 27 52 / 0.16);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.55);
+  font-size: var(--step-0);
+  font-weight: 620;
+}
+
+.story__social {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  margin-left: -10px;
+}
+
+.story__social a {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink);
+  border-radius: 50%;
+  transition: color 160ms ease-out, background-color 160ms ease-out;
+}
+
+.story__social a:hover {
+  color: var(--cobalt);
+  background: rgb(47 75 255 / 0.08);
+}
+
+.beat__when {
+  font-size: var(--step-0);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.beat__where {
+  color: var(--cobalt);
+}
+
+.beat__year {
+  color: var(--slate);
+}
+
+.beat__year::before {
+  content: "· ";
+}
+
+.beat__text {
+  margin-top: 14px;
+  max-width: 22ch;
+  font-size: clamp(1.75rem, 3.1vw, 2.9rem);
+  font-weight: 760;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+/* Static and phones: the beats as a short timeline under the intro. */
+html:not([data-mode="full"]) .story__timeline {
+  display: grid;
+  gap: 28px;
+  margin-top: 56px;
+  padding-left: 20px;
+  border-left: 2px solid rgb(251 187 35 / 0.3);
+}
+
+html:not([data-mode="full"]) .beat__text {
+  font-size: var(--step-2);
+  max-width: 32ch;
+}
+
+.story__skip {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: start;
+  margin-top: 32px;
+  font-size: var(--step-0);
+  font-weight: 650;
+}
+
+[data-mode="full"] .story__skip {
+  position: absolute;
+  left: var(--gutter);
+  bottom: 28px;
+  margin: 0;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+}
+
+[data-mode="full"] .hero {
+  height: 340vh;
+}
+
+[data-mode="lite"] .hero {
+  height: 280vh;
+}
+
+.hero__sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.hero__copy {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(32px, 7vh, 72px);
+  z-index: 2;
+  max-width: min(31rem, 37vw);
+}
+
+.hero__title {
+  font-size: var(--step-4);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.hero__project {
+  margin-top: 28px;
+  max-width: 34ch;
+}
+
+.hero__hint {
+  margin-top: 16px;
+  max-width: 36ch;
+  font-size: var(--step-0);
+  color: var(--slate);
+}
+
+.hint-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .hint-pointer {
+    display: none;
+  }
+  .hint-touch {
+    display: inline;
+  }
+}
+
+html:not([data-mode="full"]) .hint-lens {
+  display: none;
+}
+
+[data-mode="static"] .hero__hint {
+  display: none;
+}
+
+/* Static: the finished screen as a plain image, where the phone would be. */
+.hero__still {
+  position: absolute;
+  left: 66%;
+  top: 8%;
+  height: 84%;
+  width: auto;
+  max-width: 42vw;
+  object-fit: contain;
+  translate: -50% 0;
+  border-radius: 6.7% / 3%;
+  box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.7);
+}
+
+/* ---------- Section basics ---------- */
+
+.work,
+.about,
+.stack,
+.contact {
+  padding: 160px var(--gutter) 0;
+}
+
+.section-title {
+  font-size: clamp(2.25rem, 3.6vw, 3.25rem);
+  font-weight: 780;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+}
+
+/* ---------- Work ---------- */
+
+.work__list {
+  margin: 64px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 120px;
+}
+
+.work-item {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: start;
+}
+
+.work-item__text {
+  grid-column: 1 / span 5;
+}
+
+.work-item__meta,
+.work-item__tools {
+  color: var(--slate);
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.work-item__title {
+  margin-top: 6px;
+  font-size: var(--step-2);
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.work-item__summary {
+  margin-top: 12px;
+  max-width: 38ch;
+}
+
+.work-item__tools {
+  margin-top: 12px;
+  max-width: 44ch;
+}
+
+.work-item__link {
+  display: inline-block;
+  margin-top: 20px;
+}
+
+.work-item__image {
+  grid-column: 7 / span 6;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* Full: the project text sticks while the phone beside it changes screen. */
+[data-mode="full"] .work__list {
+  gap: 0;
+}
+
+[data-mode="full"] .work-item {
+  min-height: 105vh;
+}
+
+[data-mode="full"] .work-item__text {
+  grid-column: 1 / span 6;
+  position: sticky;
+  top: 36vh;
+  /* Lets go before the next project arrives, so two never touch. */
+  margin-bottom: 28vh;
+}
+
+/* ---------- How I work ---------- */
+
+/* Heading, lead and decisions all start on the same column as the work above. */
+.about__intro > * {
+  max-width: 34em;
+}
+
+.about__lead {
+  margin-top: 32px;
+  font-size: var(--step-2);
+  line-height: 1.45;
+}
+
+[data-mode="full"] .about__intro {
+  width: calc((100% - 11 * var(--col-gap)) / 2 + 5 * var(--col-gap));
+}
+
+.about__list {
+  margin: 96px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  /* minmax(0, …) so a long code line scrolls inside its block instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 120px;
+}
+
+.example__body {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: start;
+}
+
+.example__text {
+  grid-column: 1 / span 5;
+}
+
+.example__title {
+  font-size: var(--step-2);
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.example__screen,
+.example__build {
+  margin-top: 12px;
+  max-width: 38ch;
+}
+
+.example__build {
+  color: var(--slate);
+}
+
+/* Static: the screen area above, the code that builds it below. */
+.example__figure {
+  grid-column: 7 / span 6;
+  min-width: 0;
+}
+
+.crop {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+  background: #0d1212; /* The app's own background, shown while the image loads. */
+}
+
+.crop img {
+  position: absolute;
+  max-width: none;
+  height: auto;
+}
+
+.snippet {
+  margin: 0;
+  padding: 18px 22px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.snippet .tok {
+  background: none;
+  color: var(--amber);
+}
+
+/* Full: the decision and its code stick on the left; the phone zooms in on the right. */
+[data-mode="full"] .about__list {
+  margin-top: 40px;
+  gap: 0;
+}
+
+[data-mode="full"] .example {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  min-height: 120vh;
+}
+
+[data-mode="full"] .example__body {
+  grid-column: 1 / span 6;
+  position: sticky;
+  top: 22vh;
+  display: block;
+  margin-bottom: 24vh;
+}
+
+[data-mode="full"] .example__figure {
+  margin-top: 24px;
+}
+
+[data-mode="full"] .snippet {
+  border-radius: 6px;
+}
+
+/* ---------- Tech stack ---------- */
+
+.stack__list {
+  margin: 56px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px var(--col-gap);
+}
+
+/* Full: the phone is settling on the right, so the stack keeps to the left. */
+[data-mode="full"] .stack__list {
+  width: calc((100% - 11 * var(--col-gap)) * 8 / 12 + 7 * var(--col-gap));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stack-group__icon {
+  width: 84px;
+  height: 84px;
+  margin-bottom: 14px;
+}
+
+.stack-group__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition:
+    scale 300ms cubic-bezier(0.2, 0.8, 0.2, 1.4),
+    rotate 300ms cubic-bezier(0.2, 0.8, 0.2, 1.4);
+}
+
+/* Each icon drifts gently, out of step with its neighbours, and lifts when pointed at. */
+@media (prefers-reduced-motion: no-preference) {
+  .stack-group__icon img {
+    animation: stack-float 5.6s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -0.95s);
+  }
+
+  .stack-group:hover .stack-group__icon img {
+    scale: 1.14;
+    rotate: -7deg;
+  }
+}
+
+@keyframes stack-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+.stack-group__label {
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--slate);
+  letter-spacing: 0.02em;
+}
+
+.stack-group__items {
+  margin-top: 6px;
+  max-width: 30ch;
+}
+
+/* ---------- Contact ---------- */
+
+.contact {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: center;
+  padding-bottom: 120px;
+}
+
+.contact__body {
+  grid-column: 1 / span 7;
+}
+
+.contact__primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin-top: 32px;
+}
+
+.contact__email {
+  font-size: clamp(1.5rem, 3.4vw, 3.25rem);
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.button {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1.5px solid var(--cobalt);
+  border-radius: 999px;
+  background: var(--cobalt);
+  color: var(--on-amber);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button {
+  font-weight: 650;
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    translate 160ms ease-out,
+    box-shadow 160ms ease-out,
+    scale 120ms ease-out;
+}
+
+.button:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-amber);
+  translate: 0 -2px;
+  color: var(--on-amber);
+  box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.6);
+}
+
+.button:active {
+  scale: 0.97;
+  translate: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  a,
+  .kinetic__ch {
+    transition: none;
+  }
+  .button:hover {
+    translate: none;
+  }
+}
+
+.contact__status {
+  min-height: 1.5em;
+  margin-top: 12px;
+  font-size: var(--step-0);
+  color: var(--slate);
+}
+
+.contact__note {
+  margin-top: 20px;
+  max-width: 46ch;
+}
+
+.contact__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 32px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact__links a {
+  display: inline-block;
+  padding-block: 10px;
+}
+
+/* Your character, beside the email. The phone sits to its right. */
+/* Your avatar, beside the email. In the full version the 3D phone lands in its hand. */
+.contact__character {
+  grid-column: 8 / span 5;
+  align-self: end;
+}
+
+.contact__character img {
+  width: 100%;
+  height: auto;
+  max-width: 440px;
+  max-height: 78vh;
+  margin-inline: auto;
+  object-fit: contain;
+  object-position: bottom;
+}
+
+.site-footer {
+  padding: 24px var(--gutter) 32px;
+  font-size: var(--step-0);
+  color: var(--slate);
+}
+
+/* ---------- Phones: one column ---------- */
+
+@media (max-width: 767.98px) {
+  .site-header .site-header__cta {
+    display: none;
+  }
+
+  .story__skip {
+    order: 3;
+  }
+
+  /* Phones: the illustration above the text, everything in one column. */
+  .story__sticky {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 76px;
+  }
+
+  .story__figure {
+    order: -1;
+    width: min(88vw, 420px);
+    margin: 0 auto 24px;
+  }
+
+  .story__name {
+    font-size: clamp(2.5rem, 12vw, 3.5rem);
+  }
+
+  .site-header {
+    padding-top: 18px;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .site-header__nav {
+    gap: 16px;
+  }
+
+  .hero__copy {
+    top: 76px;
+    bottom: auto;
+    right: var(--gutter);
+    max-width: 36rem;
+  }
+
+  .hero__title {
+    font-size: 2rem;
+  }
+
+  .hero__project {
+    margin-top: 14px;
+    font-size: 1rem;
+  }
+
+  .hero__hint {
+    margin-top: 8px;
+  }
+
+  [data-mode="static"] .hero {
+    height: auto;
+  }
+
+  [data-mode="static"] .hero__sticky {
+    position: relative;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 76px var(--gutter) 0;
+  }
+
+  [data-mode="static"] .hero__copy {
+    position: static;
+  }
+
+  [data-mode="static"] .hero__still {
+    position: static;
+    order: 2;
+    translate: none;
+    width: min(70vw, 340px);
+    height: auto;
+    max-width: none;
+    margin: 32px auto 0;
+  }
+
+  .work,
+  .about,
+  .stack,
+  .contact {
+    padding-top: 112px;
+  }
+
+  .stack__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 20px;
+  }
+
+  .stack-group__icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .work__list {
+    gap: 72px;
+  }
+
+  .work-item,
+  .example__body,
+  .contact {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .work-item {
+    gap: 12px;
+  }
+
+  .work-item__image {
+    order: -1;
+    margin-bottom: 8px;
+  }
+
+  .about__list {
+    margin-top: 64px;
+    gap: 72px;
+  }
+
+  .example__body {
+    gap: 24px;
+  }
+
+  .contact {
+    padding-bottom: 72px;
+  }
+
+  .contact__email {
+    font-size: clamp(1.375rem, 6.4vw, 2.25rem);
+  }
+
+  .contact__character {
+    width: min(84vw, 360px);
+    margin: 48px auto 0;
+  }
+}
+
+/* Very narrow phones: the header keeps Work and Contact; How I work is the next section anyway. */
+@media (max-width: 420px) {
+  .site-header__nav li:nth-child(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 768px) {
+  .work-item__text,
+  .example__text {
+    grid-column: 1 / span 6;
+  }
+}
+
+/* =====================================================================
+   Picksmart sections
+   ===================================================================== */
+
+body {
+  background: var(--canvas);
+}
+
+/* Header: the pin and the wordmark. */
+.site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-header__brand img {
+  width: auto;
+  height: 34px;
+}
+
+.site-header__brand .site-header__word {
+  height: 20px;
+}
+
+.site-header__nav a {
+  color: var(--slate);
+  font-weight: 560;
+}
+
+.site-header__nav a:hover {
+  color: var(--ink);
+}
+
+/* Google Play, coming soon: looks like a store badge, isn't a link until there is one. */
+.play-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 20px 6px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.1;
+  text-decoration: none;
+}
+
+.play-badge small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--slate);
+}
+
+.play-badge svg {
+  color: var(--amber);
+}
+
+a.play-badge:hover {
+  border-color: var(--amber);
+}
+
+.story__actions .button--ghost {
+  border: 1.5px solid var(--line);
+}
+
+/* The hero's note on the example numbers. */
+.hero__sample {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  color: rgb(154 164 178 / 0.8);
+}
+
+.hero__title {
+  max-width: 14ch;
+}
+
+/* Features: the kicker in yellow, like the app's section labels. */
+.work-item__meta {
+  color: var(--amber);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.work-item__title {
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 760;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+.work-item__summary {
+  color: var(--slate);
+}
+
+/* Static and phones: the screen as a phone-shaped image. */
+.work-item__image {
+  aspect-ratio: 898 / 2000;
+  width: min(100%, 300px);
+  /* The height="2000" attribute would otherwise win over the aspect ratio. */
+  height: auto;
+  object-fit: contain;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+}
+
+/* Vehicles */
+.fleet {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: center;
+  padding: 160px var(--gutter) 0;
+}
+
+.fleet__text {
+  grid-column: 1 / span 5;
+}
+
+.fleet__lead {
+  margin-top: 24px;
+  max-width: 40ch;
+  color: var(--slate);
+}
+
+.fleet__note {
+  margin-top: 16px;
+  font-size: var(--step-0);
+  font-weight: 650;
+  color: var(--amber);
+}
+
+.fleet__figure {
+  grid-column: 6 / span 7;
+}
+
+[data-mode="full"] .fleet__figure {
+  /* The phone is still on the right here; the picture takes the left half under the text. */
+  grid-column: 1 / span 6;
+  margin-top: 32px;
+}
+
+.fleet__figure img,
+.about__figure img {
+  width: 100%;
+  height: auto;
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 55%, transparent 100%);
+}
+
+.about__figure {
+  margin-top: 40px;
+  max-width: 640px;
+}
+
+.about__lead {
+  color: var(--slate);
+}
+
+.snippet .tok {
+  color: var(--amber);
+}
+
+/* While you ride: cards with a status line. */
+.stack__list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stack-group {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.stack-group__icon {
+  width: auto;
+  height: 64px;
+  margin-bottom: 18px;
+}
+
+.stack-group__icon img {
+  width: auto;
+  height: 100%;
+}
+
+.stack-group__label {
+  font-size: var(--step-2);
+  font-weight: 720;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.stack-group__status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stack-group__status[data-status="ready"] {
+  background: rgb(74 222 128 / 0.12);
+  color: var(--profit);
+}
+
+.stack-group__status[data-status="testing"] {
+  background: rgb(251 187 35 / 0.12);
+  color: var(--amber);
+}
+
+.stack-group__status[data-status="planned"] {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate);
+}
+
+.stack-group__items {
+  margin-top: 12px;
+  max-width: 44ch;
+  color: var(--slate);
+}
+
+/* Privacy */
+.privacy,
+.plans {
+  padding: 160px var(--gutter) 0;
+}
+
+.privacy__list {
+  display: grid;
+  gap: 18px;
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: 34rem;
+}
+
+.privacy__list li {
+  position: relative;
+  padding-left: 36px;
+  font-size: var(--step-1);
+}
+
+.privacy__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.25em;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.5 10.5l3 3 6-7' fill='none' stroke='%230b0f14' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 20px no-repeat,
+    var(--amber);
+}
+
+.privacy__more {
+  margin-top: 28px;
+  font-size: var(--step-0);
+}
+
+[data-mode="full"] .privacy {
+  min-height: 100vh;
+}
+
+/* Plans */
+.plans__lead {
+  margin-top: 20px;
+  max-width: 46ch;
+  color: var(--slate);
+}
+
+.plans__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--col-gap);
+  margin: 48px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.plan:nth-child(2) {
+  border-color: rgb(251 187 35 / 0.5);
+}
+
+.plan__name {
+  font-size: var(--step-2);
+  font-weight: 760;
+}
+
+.plan__note {
+  margin-top: 4px;
+  font-size: var(--step-0);
+  color: var(--amber);
+  font-weight: 650;
+}
+
+.plan__items {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--slate);
+  font-size: 1rem;
+}
+
+.plan__items li::before {
+  content: "—";
+  margin-right: 8px;
+  color: var(--amber);
+}
+
+/* The end: the rider at dawn, full width, the words in the empty sky on the left. */
+.contact {
+  position: relative;
+  display: block;
+  margin-top: 160px;
+  padding: 0;
+  min-height: min(56.25vw, 100vh);
+  overflow: hidden;
+}
+
+.contact__figure {
+  position: absolute;
+  inset: 0;
+}
+
+.contact__figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 50%;
+}
+
+.contact__figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(11 15 20 / 0.92) 0%, rgb(11 15 20 / 0.55) 42%, transparent 70%),
+    linear-gradient(180deg, var(--canvas) 0%, transparent 18%, transparent 80%, var(--canvas) 100%);
+}
+
+.contact__body {
+  position: relative;
+  max-width: 34rem;
+  padding: clamp(96px, 16vh, 180px) var(--gutter);
+}
+
+.contact__note {
+  margin-top: 20px;
+  color: rgb(242 244 247 / 0.82);
+}
+
+.contact__email {
+  color: var(--amber);
+  font-size: clamp(1.125rem, 1.8vw, 1.625rem);
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* Full: the features heading keeps to the text column; the phone is on the right. */
+[data-mode="full"] .work > .section-title,
+[data-mode="full"] .stack > .section-title,
+[data-mode="full"] .privacy > .section-title {
+  max-width: calc((100% - 11 * var(--col-gap)) / 2 + 5 * var(--col-gap));
+}
+
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.site-footer a {
+  color: var(--slate);
+}
+
+.site-footer__fine {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1100px) and (min-width: 768px) {
+  .plans__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .site-header__brand .site-header__word {
+    display: none;
+  }
+
+  .fleet,
+  .privacy,
+  .plans {
+    padding-top: 112px;
+  }
+
+  .fleet {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 28px;
+  }
+
+  .stack__list,
+  .plans__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .work-item__image {
+    width: min(76vw, 280px);
+    margin-inline: auto;
+  }
+
+  /* Taps: small text links get a 44px-tall hit area without moving anything. */
+  .site-header__nav a,
+  .site-header__brand,
+  .story__skip,
+  .site-footer a,
+  .privacy a,
+  .contact__email {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .site-header__nav a {
+    padding-inline: 6px;
+    margin-inline: -6px;
+  }
+
+  .site-footer__fine,
+  .stack-group__status {
+    font-size: 0.8125rem;
+  }
+
+  .contact {
+    margin-top: 112px;
+    min-height: 0;
+  }
+
+  .contact__figure {
+    position: relative;
+  }
+
+  .contact__figure::after {
+    background: linear-gradient(180deg, var(--canvas) 0%, transparent 25%, transparent 60%, var(--canvas) 100%);
+  }
+
+  .contact__body {
+    padding: 8px var(--gutter) 72px;
+  }
+}
+
+/* Where the money goes: beside the phone, after the lens. Rows and bar follow the scroll
+   (story.js sets --r0..--r4 from 0 to 1). Only in the full version; elsewhere "No magic" covers it. */
+.breakdown {
+  display: none;
+}
+
+[data-mode="full"] .breakdown {
+  position: absolute;
+  left: var(--gutter);
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 2;
+  display: block;
+  width: min(30rem, 40vw);
+  visibility: hidden;
+  opacity: 0;
+}
+
+.breakdown__title {
+  font-size: clamp(1.75rem, 2.8vw, 2.75rem);
+  font-weight: 780;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.breakdown__bar {
+  display: flex;
+  height: 14px;
+  margin-top: 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.breakdown__seg--keep {
+  flex: 1;
+  background: var(--profit);
+}
+
+.breakdown__seg--fuel {
+  width: calc(var(--share-fuel, 0) * 1% * var(--r2, 1));
+  background: #f59e0b;
+}
+
+.breakdown__seg--fee {
+  width: calc(var(--share-fee, 0) * 1% * var(--r1, 1));
+  background: var(--slate);
+}
+
+.breakdown__rows {
+  margin: 28px 0 0;
+}
+
+.breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown__row:nth-child(1) { opacity: var(--r0, 1); translate: 0 calc((1 - var(--r0, 1)) * 14px); }
+.breakdown__row:nth-child(2) { opacity: var(--r1, 1); translate: 0 calc((1 - var(--r1, 1)) * 14px); }
+.breakdown__row:nth-child(3) { opacity: var(--r2, 1); translate: 0 calc((1 - var(--r2, 1)) * 14px); }
+.breakdown__row:nth-child(4) { opacity: var(--r3, 1); translate: 0 calc((1 - var(--r3, 1)) * 14px); }
+.breakdown__row:nth-child(5) { opacity: var(--r4, 1); translate: 0 calc((1 - var(--r4, 1)) * 14px); }
+
+.breakdown__row dt {
+  color: var(--slate);
+}
+
+.breakdown__row dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+}
+
+.breakdown__row--fee dd,
+.breakdown__row--fuel dd,
+.breakdown__row--reserve dd {
+  color: var(--loss);
+}
+
+.breakdown__row--keep {
+  border-bottom: 0;
+  padding-top: 20px;
+}
+
+.breakdown__row--keep dt {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.breakdown__row--keep dd {
+  color: var(--profit);
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.breakdown__row--keep small {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--slate);
+  letter-spacing: 0;
+}

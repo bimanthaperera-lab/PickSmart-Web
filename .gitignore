@@ -1,0 +1,18 @@
+# Dependencies & build output
+node_modules/
+dist/
+
+# Local tooling
+.claude/
+
+# Raw source media (not used by the site)
+Gemini_Generated_Image_*.jpg
+Man_smiling_and_waving_hand_*.mp4
+WhatsApp Image *.jpeg
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*

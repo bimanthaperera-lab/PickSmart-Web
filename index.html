@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Picksmart: know your real profit before you ride</title>
+    <meta
+      name="description"
+      content="Picksmart shows Uber, PickMe and delivery riders in Sri Lanka what a ride will really earn, after the platform fee, fuel and wear, before they accept it."
+    />
+    <meta name="theme-color" content="#0b0f14" />
+    <link rel="icon" href="./favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka@5/400.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <!-- One phone for the whole page: a fixed canvas behind the text. Decorative; the same
+         screens are in the page as images for screen readers, small screens and reduced motion. -->
+    <div class="backdrop" data-backdrop aria-hidden="true"><div class="backdrop__grid" data-grid></div></div>
+    <!-- The rider's illustration, behind the canvas so the 3D phone can come out of his hand. -->
+    <div class="stage-art" aria-hidden="true"><img data-stage-art alt="" /></div>
+    <div class="scene" data-scene aria-hidden="true">
+      <div class="scene__canvas" data-canvas></div>
+      <div class="scene__labels">
+        <span class="scene__label" data-label="final"></span>
+        <span class="scene__label" data-label="components"></span>
+        <span class="scene__label" data-label="wireframe"></span>
+        <span class="scene__label" data-label="code"></span>
+      </div>
+    </div>
+    <div
+      class="lens"
+      data-lens
+      aria-hidden="true"
+      data-off
+    ></div>
+
+    <a class="skip" href="#features">Skip to features</a>
+
+    <header class="site-header">
+      <a class="site-header__brand" href="#top" aria-label="Picksmart, back to the top">
+        <img src="./assets/brand/pin.png" alt="" width="180" height="257" />
+        <img class="site-header__word" src="./assets/brand/wordmark.png" alt="Picksmart" width="480" height="75" />
+      </a>
+      <nav aria-label="Main">
+        <ul class="site-header__nav">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#maths">The maths</a></li>
+          <li><a href="#plans">Plans</a></li>
+        </ul>
+      </nav>
+      <a class="button button--amber site-header__cta" data-bind="email-link">Early access</a>
+    </header>
+
+    <main>
+      <section class="story" id="top" aria-labelledby="story-title">
+        <div class="story__sticky">
+          <a class="story__skip" href="#features">Skip to features <span aria-hidden="true">↓</span></a>
+          <div class="story__beats">
+            <div class="beat beat--intro" data-beat="0">
+              <p class="story__kicker" data-bind="story-kicker"></p>
+              <h1 class="story__name" id="story-title" data-story-name></h1>
+              <p class="story__role" data-bind="description"></p>
+              <div class="story__actions">
+                <span class="play-badge" data-play>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4.2 2.4c-.3.3-.5.8-.5 1.4v16.4c0 .6.2 1.1.5 1.4l.1.1 9.2-9.2v-.2L4.3 2.3l-.1.1Zm12.4 12.5-3.1-3.1v-.2l3.1-3.1.1.1 3.6 2.1c1 .6 1 1.6 0 2.2l-3.6 2-.1 0Zm-.1 0-3.1-3.1-9.2 9.2c.4.4.9.4 1.6.1l10.7-6.2Zm0-6.3L5.8 2.5c-.7-.4-1.2-.3-1.6.1l9.2 9.2 3.1-3.2Z"/></svg>
+                  <span><small data-play-note>Coming soon to</small> Google Play</span>
+                </span>
+                <a class="button button--ghost" href="#features">See how it works <span aria-hidden="true">↓</span></a>
+              </div>
+            </div>
+            <ol class="story__timeline" data-beats aria-label="One offer, step by step"></ol>
+          </div>
+          <figure class="story__figure"><img data-story-img /></figure>
+        </div>
+      </section>
+
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__sticky">
+          <img class="hero__still" data-hero-still alt="" />
+          <div class="hero__copy">
+            <h2 class="hero__title" id="hero-title" data-bind="hero-title"></h2>
+            <p class="hero__project" data-bind="hero-summary"></p>
+            <p class="hero__hint">
+              Scroll to see where the money goes.
+              <span class="hero__sample">Example offer: the fee, fuel price and target are a rider's own settings, not fixed rates.</span>
+            </p>
+          </div>
+          <div class="breakdown" data-breakdown>
+            <h3 class="breakdown__title" data-bind="breakdown-heading"></h3>
+            <div class="breakdown__bar" aria-hidden="true">
+              <span class="breakdown__seg breakdown__seg--keep"></span>
+              <span class="breakdown__seg breakdown__seg--fuel"></span>
+              <span class="breakdown__seg breakdown__seg--fee"></span>
+            </div>
+            <dl class="breakdown__rows" data-breakdown-rows></dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="work" id="features" aria-labelledby="work-title">
+        <h2 class="section-title" id="work-title">Everything a rider needs, and nothing else.</h2>
+        <ol class="work__list" data-work></ol>
+      </section>
+
+      <section class="fleet" aria-labelledby="fleet-title">
+        <div class="fleet__text">
+          <h2 class="section-title" id="fleet-title" data-bind="fleet-heading"></h2>
+          <p class="fleet__lead" data-bind="fleet-lead"></p>
+          <p class="fleet__note" data-bind="fleet-note"></p>
+        </div>
+        <figure class="fleet__figure"><img data-fleet-img /></figure>
+      </section>
+
+      <section class="about" id="maths" aria-labelledby="about-title">
+        <div class="about__intro">
+          <h2 class="section-title" id="about-title" data-bind="about-heading"></h2>
+          <p class="about__lead" data-bind="about-lead"></p>
+          <figure class="about__figure"><img data-costs-img /></figure>
+        </div>
+        <ol class="about__list" data-examples></ol>
+      </section>
+
+      <section class="stack" id="ride" aria-labelledby="stack-title">
+        <h2 class="section-title" id="stack-title" data-bind="stack-heading"></h2>
+        <ul class="stack__list" data-stack></ul>
+      </section>
+
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <h2 class="section-title" id="privacy-title" data-bind="privacy-heading"></h2>
+        <ul class="privacy__list" data-privacy></ul>
+        <p class="privacy__more"><a data-bind="privacy-link">Read the privacy policy</a></p>
+      </section>
+
+      <section class="plans" id="plans" aria-labelledby="plans-title">
+        <h2 class="section-title" id="plans-title" data-bind="plans-heading"></h2>
+        <p class="plans__lead" data-bind="plans-lead"></p>
+        <ol class="plans__list" data-plans></ol>
+      </section>
+
+      <section class="contact" id="get" aria-labelledby="contact-title">
+        <figure class="contact__figure"><img data-dawn-img /></figure>
+        <div class="contact__body">
+          <h2 class="section-title" id="contact-title" data-bind="contact-heading"></h2>
+          <p class="contact__note" data-bind="contact-note"></p>
+          <div class="contact__primary">
+            <a class="contact__email" data-bind="email"></a>
+            <button class="button" type="button" data-copy-email>Copy email</button>
+          </div>
+          <p class="contact__status" role="status" aria-live="polite" data-copy-status></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>© <span data-bind="year-now"></span> Picksmart · <a data-bind="privacy-link">Privacy policy</a></p>
+      <p class="site-footer__fine">Uber and PickMe are trademarks of their owners. Picksmart isn't made by or linked to either of them.</p>
+    </footer>
+  </body>
+</html>
