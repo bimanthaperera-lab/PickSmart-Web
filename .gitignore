@@ -16,3 +16,6 @@ Thumbs.db
 *.log
 .env
 .env.*
+
+# Browser automation output
+.playwright-mcp/
